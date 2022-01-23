@@ -43,6 +43,14 @@ describe('calculateEnergyUsageSimple', () => {
     expect(calculateEnergyUsageSimple(usageProfile3)).toEqual(1440);
   });
 
+  it('should calculate correctly when the appliance is off the whole time', () => {
+    const usageProfile = {
+      initial: 'off',
+      events: [],
+    };
+    expect(calculateEnergyUsageSimple(usageProfile)).toEqual(0);
+  });
+
   it('should handle duplicate on events', () => {
     const usageProfile = {
       initial: 'off',
@@ -72,6 +80,21 @@ describe('calculateEnergyUsageSimple', () => {
       80 - 0 + (1440 - 656)
     );
   });
+
+  it('should handle duplicate fist off event with initial state = "off"', () => {
+    const usageProfile = {
+      initial: 'off',
+      events: [
+        { timestamp: 30, state: 'off' },
+        { timestamp: 80, state: 'on' },
+        { timestamp: 150, state: 'off' },
+        { timestamp: 656, state: 'on' },
+      ],
+    };
+    expect(calculateEnergyUsageSimple(usageProfile)).toEqual(
+      150 - 80 + (1440 - 656)
+    );
+  });
 });
 
 // Part 2
@@ -97,6 +120,22 @@ describe('calculateEnergySavings', () => {
     const usageProfile = {
       initial: 'auto-off',
       events: [],
+    };
+    expect(calculateEnergySavings(usageProfile)).toEqual(MAX_IN_PERIOD);
+  });
+
+  it('should calculate energy savings correctly when "auto-off" kicks in last minute', () => {
+    const usageProfile = {
+      initial: 'on',
+      events: [{ state: 'auto-off', timestamp: 1439 }],
+    };
+    expect(calculateEnergySavings(usageProfile)).toEqual(1);
+  });
+
+  it('should calculate energy savings correctly when "auto-off" kicks in first minute', () => {
+    const usageProfile = {
+      initial: 'on',
+      events: [{ state: 'auto-off', timestamp: 0 }],
     };
     expect(calculateEnergySavings(usageProfile)).toEqual(MAX_IN_PERIOD);
   });
@@ -152,6 +191,47 @@ describe('calculateEnergySavings', () => {
       ],
     };
     expect(calculateEnergySavings(usageProfile)).toEqual(MAX_IN_PERIOD - 320);
+  });
+
+  it('should calculate energy savings correctly with initial state = "auto-off"', () => {
+    const usageProfile = {
+      initial: 'auto-off',
+      events: [
+        { state: 'on', timestamp: 250 },
+        { state: 'on', timestamp: 299 },
+        { state: 'auto-off', timestamp: 320 },
+        { state: 'off', timestamp: 500 },
+      ],
+    };
+    expect(calculateEnergySavings(usageProfile)).toEqual(
+      250 - 0 + MAX_IN_PERIOD - 320
+    );
+  });
+
+  it('should calculate energy savings correctly with duplicate "auto-off"', () => {
+    const usageProfile = {
+      initial: 'off',
+      events: [
+        { state: 'on', timestamp: 250 },
+        { state: 'auto-off', timestamp: 299 },
+        { state: 'auto-off', timestamp: 320 },
+        { state: 'off', timestamp: 500 },
+      ],
+    };
+    expect(calculateEnergySavings(usageProfile)).toEqual(MAX_IN_PERIOD - 299);
+  });
+
+  it('should calculate energy savings correctly when "auto-off" comes after "off"', () => {
+    const usageProfile = {
+      initial: 'off',
+      events: [
+        { state: 'on', timestamp: 250 },
+        { state: 'off', timestamp: 500 },
+        { state: 'auto-off', timestamp: 700 },
+        { state: 'on', timestamp: 900 },
+      ],
+    };
+    expect(calculateEnergySavings(usageProfile)).toEqual(900 - 700);
   });
 });
 
@@ -221,6 +301,21 @@ describe('calculateEnergyUsageForDay', () => {
     expect(calculateEnergyUsageForDay(monthProfile1, 4)).toEqual(1260);
     expect(calculateEnergyUsageForDay(monthProfile1, 15)).toEqual(
       MAX_IN_PERIOD
+    );
+  });
+
+  it('should calculate the energy usage correctly when events happen between days', () => {
+    const monthProfile1 = {
+      initial: 'off',
+      events: [
+        { timestamp: MAX_IN_PERIOD, state: 'on' },
+        { timestamp: MAX_IN_PERIOD * 3 - 1, state: 'off' },
+      ],
+    };
+    expect(calculateEnergyUsageForDay(monthProfile1, 1)).toEqual(0);
+    expect(calculateEnergyUsageForDay(monthProfile1, 2)).toEqual(MAX_IN_PERIOD);
+    expect(calculateEnergyUsageForDay(monthProfile1, 3)).toEqual(
+      MAX_IN_PERIOD - 1
     );
   });
 

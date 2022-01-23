@@ -36,7 +36,22 @@ const MAX_IN_PERIOD = 1440;
  * ```
  */
 
-const calculateEnergyUsageSimple = (profile) => {}
+const calculateEnergyUsageSimple = (profile) => {
+  let usage = 0;
+  let lastState = profile.initial;
+  let lastStateTimestamp = 0;
+
+  for (let event of profile.events) {
+    if (event.state === lastState) continue;
+    if (event.state === 'off') usage += event.timestamp - lastStateTimestamp;
+    lastState = event.state;
+    lastStateTimestamp = event.timestamp;
+  }
+
+  if (lastState === 'on') usage += MAX_IN_PERIOD - lastStateTimestamp;
+
+  return usage;
+};
 
 /**
  * PART 2
@@ -70,7 +85,23 @@ const calculateEnergyUsageSimple = (profile) => {}
  * and not manual intervention.
  */
 
-const calculateEnergySavings = (profile) => {};
+const calculateEnergySavings = (profile) => {
+  let savings = 0;
+  let state = profile.initial;
+  let timestamp = 0;
+
+  for (let event of profile.events) {
+    if (event.state === 'off' || event.state === state) continue;
+    if (event.state === 'on' && state === 'auto-off')
+      savings += event.timestamp - timestamp;
+    state = event.state;
+    timestamp = event.timestamp;
+  }
+
+  if (state === 'auto-off') savings += MAX_IN_PERIOD - timestamp;
+
+  return savings;
+};
 
 /**
  * PART 3
@@ -100,7 +131,29 @@ const calculateEnergySavings = (profile) => {};
 
 const isInteger = (number) => Number.isInteger(number);
 
-const calculateEnergyUsageForDay = (monthUsageProfile, day) => {};
+const calculateEnergyUsageForDay = (monthUsageProfile, day) => {
+  if (!isInteger(day)) throw new Error(`${day} must be an integer`);
+  if (day < 1 || day > 365) throw new Error(`${day} day out of range`);
+
+  const dayStart = (day - 1) * MAX_IN_PERIOD;
+  const dayEnd = dayStart + MAX_IN_PERIOD;
+  const events = [];
+  let initial = monthUsageProfile.initial;
+
+  for (let event of monthUsageProfile.events) {
+    if (event.timestamp < dayStart) {
+      initial = event.state;
+      continue;
+    }
+    if (event.timestamp > dayEnd) break;
+    events.push({
+      state: event.state,
+      timestamp: event.timestamp - dayStart,
+    });
+  }
+
+  return calculateEnergyUsageSimple({ initial, events });
+};
 
 module.exports = {
   calculateEnergyUsageSimple,
